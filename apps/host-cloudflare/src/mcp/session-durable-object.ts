@@ -26,7 +26,7 @@ import { mcpSessionStub } from "@executor-js/cloudflare/mcp/session-stub";
 import type { ResumeResponse } from "@executor-js/execution";
 
 import { loadConfig, type CloudflareConfig, type CloudflareEnv } from "../config";
-import { createD1ExecutorDb } from "../db/d1";
+import { openD1ExecutorDb } from "../db/d1";
 import { makeCloudflareExecutionStackLayer, makeExecutionStack } from "../execution";
 import { preloadQuickJs } from "../quickjs";
 
@@ -97,8 +97,8 @@ export class McpSessionDO extends McpAgentSessionDOBase<CloudflareEnv, CfSession
     });
   }
 
-  protected override async openSessionDb(): Promise<CfSessionDbHandle> {
-    const handle = await createD1ExecutorDb(this.cfEnv.DB, this.cfEnv.BLOBS);
+  protected override openSessionDb(): CfSessionDbHandle {
+    const handle = openD1ExecutorDb(this.cfEnv.DB, this.cfEnv.BLOBS);
     return { ...handle, end: () => handle.close() };
   }
 

@@ -56,6 +56,8 @@ export interface CloudflareEnv {
    * behind Access, or the instance is wide open.
    */
   readonly ENABLE_DEV_AUTH?: string;
+  /** Local workerd-only escape hatch. Production migrations run at deploy time. */
+  readonly MIGRATE_D1_ON_STARTUP?: string;
 }
 
 export interface CloudflareConfig {

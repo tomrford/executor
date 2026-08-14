@@ -19,23 +19,30 @@ import { runCloudflareDataMigrations } from "./data-migrations";
 // D1 DbProvider handle — the CF-native swap for self-host's libSQL handle.
 //
 // D1 is SQLite, so this reuses the SAME shared FumaDB assembly self-host uses:
-// build the runtime schema from the fixed executor table set, open drizzle over the D1
-// binding (drizzle-orm/d1), run the idempotent `ensureDrizzleRuntimeSchemaFrom-
-// Tables` bring-up (generic CREATE TABLE IF NOT EXISTS over D1), and assemble
-// `createExecutorFumaDb`. No driver to open (the binding is the connection), no
-// PRAGMAs, no `close` teardown.
+// build the runtime schema from the fixed executor table set, open drizzle over
+// the D1 binding (drizzle-orm/d1), and assemble `createExecutorFumaDb`. Schema
+// and data migration is a separate deployment operation. No driver to open (the
+// binding is the connection), no PRAGMAs, no `close` teardown.
 // ---------------------------------------------------------------------------
 
-export const createD1ExecutorDb = async (
+const d1Options = () => ({
+  tables: collectTables(),
+  namespace: CLOUDFLARE_NAMESPACE,
+  version: CLOUDFLARE_SCHEMA_VERSION,
+  provider: "sqlite" as const,
+});
+
+/**
+ * Apply schema and data migrations to a D1 database.
+ *
+ * This is deployment work. Production request and MCP-session startup must use
+ * {@link openD1ExecutorDb}, which performs no network I/O.
+ */
+export const migrateD1ExecutorDb = async (
   db: D1Database,
   blobs: R2Bucket | undefined,
-): Promise<ExecutorDbHandle> => {
-  const options = {
-    tables: collectTables(),
-    namespace: CLOUDFLARE_NAMESPACE,
-    version: CLOUDFLARE_SCHEMA_VERSION,
-    provider: "sqlite" as const,
-  };
+): Promise<readonly string[]> => {
+  const options = d1Options();
 
   const schema = createDrizzleRuntimeSchemaFromTables(options);
   const drizzleDb = drizzle(db, { schema });
@@ -45,7 +52,14 @@ export const createD1ExecutorDb = async (
   // exposes one. The bring-up is idempotent `CREATE TABLE IF NOT EXISTS`, so run
   // it WITHOUT a transaction by handing the ensure a run-only view of the handle.
   await ensureDrizzleRuntimeSchemaFromTables({ run: (query) => drizzleDb.run(query) }, options);
-  await runCloudflareDataMigrations(db, blobs);
+  return runCloudflareDataMigrations(db, blobs);
+};
+
+/** Open the already-migrated D1 database without issuing any queries. */
+export const openD1ExecutorDb = (db: D1Database, blobs: R2Bucket | undefined): ExecutorDbHandle => {
+  const options = d1Options();
+  const schema = createDrizzleRuntimeSchemaFromTables(options);
+  const drizzleDb = drizzle(db, { schema });
 
   // `interactiveTransactions: false` — D1 rejects interactive transactions, so
   // the fuma adapter runs transaction callbacks directly (auto-commit per

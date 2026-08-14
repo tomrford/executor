@@ -5,7 +5,7 @@ import { dbProviderLayer, ExecutorApp, textFailureStrategy } from "@executor-js/
 
 import { loadConfig, type CloudflareEnv } from "./config";
 import { makeCloudflarePlugins } from "./plugins";
-import { createD1ExecutorDb } from "./db/d1";
+import { migrateD1ExecutorDb, openD1ExecutorDb } from "./db/d1";
 import { cloudflareAccessIdentityLayer } from "./auth/cloudflare-access";
 import {
   CloudflareCodeExecutorProvider,
@@ -28,9 +28,10 @@ import { preloadQuickJs } from "./quickjs";
 // in-process code substrate, no billing, single-tenant. `diff` against
 // host-selfhost/src/app.ts is three injected Layers: identity, db, plugins/config.
 //
-// Built per isolate (async) so the D1 schema bring-up happens once at first
-// fetch; `env` arrives with that fetch (a Worker has no module-scope bindings),
-// so the providers close over it instead of reading process.env.
+// Built per isolate (async) because `env` arrives with the first fetch (a Worker
+// has no module-scope bindings), so the providers close over it instead of
+// reading process.env. Production D1 migrations run during deployment; the
+// explicit startup flag exists only for local workerd tests/development.
 // ===========================================================================
 
 export const makeCloudflareApp = async (env: CloudflareEnv) => {
@@ -41,9 +42,11 @@ export const makeCloudflareApp = async (env: CloudflareEnv) => {
   // executor is built, the default variant cannot fetch its .wasm on Workers.
   await preloadQuickJs();
 
-  // Open and idempotently bring up the D1 schema once. This is the long-lived
-  // handle the per-request scoped executor reads through the DbProvider seam.
-  const dbHandle = await createD1ExecutorDb(env.DB, env.BLOBS);
+  if (env.MIGRATE_D1_ON_STARTUP === "true") {
+    await migrateD1ExecutorDb(env.DB, env.BLOBS);
+  }
+  // Opening an already-migrated D1 binding is a synchronous, zero-I/O operation.
+  const dbHandle = openD1ExecutorDb(env.DB, env.BLOBS);
   const identityLayer = cloudflareAccessIdentityLayer(config);
   const mcpAgentHandler = makeCloudflareMcpAgentHandler(config);
   const approvalHandler = makeCloudflareApprovalHandler(config, env);

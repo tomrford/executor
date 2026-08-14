@@ -5,9 +5,10 @@
 #   1. verifies wrangler is logged in
 #   2. creates (or reuses) the `executor` D1 database and writes its id into
 #      wrangler.jsonc
-#   3. generates + uploads EXECUTOR_SECRET_KEY (the at-rest secret key) if unset
-#   4. deploys the Worker
-#   5. prints the single manual step: configure the Cloudflare Access application
+#   3. applies D1 schema + data migrations through remote bindings
+#   4. generates + uploads EXECUTOR_SECRET_KEY (the at-rest secret key) if unset
+#   5. deploys the Worker
+#   6. prints the single manual step: configure the Cloudflare Access application
 #
 # Idempotent — safe to re-run. Run from anywhere:
 #   bash apps/host-cloudflare/scripts/deploy.sh
@@ -51,6 +52,9 @@ node -e '
   fs.writeFileSync(p,t);
 ' "$CONFIG" "$DB_ID"
 info "wrangler.jsonc -> $DB_ID"
+
+step "Applying D1 migrations"
+bun scripts/migrate-remote.ts --config "$CONFIG"
 
 step "Ensuring EXECUTOR_SECRET_KEY secret"
 if bunx wrangler secret list 2>/dev/null | grep -q EXECUTOR_SECRET_KEY; then

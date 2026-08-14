@@ -236,6 +236,10 @@ const deploy = async (): Promise<void> => {
   const app = await ensureAccessApp(worker, hostname, allowedEmails);
   const configPath = writePreviewConfig(worker, worker, databaseId);
 
+  // Initialize the preview database before deploying code that assumes an
+  // already-migrated D1 binding, matching the production deploy lifecycle.
+  run("bun", ["scripts/migrate-remote.ts", "--config", configPath]);
+
   // turbo so workspace dependencies with build steps (@executor-js/vite-plugin)
   // are built first — a fresh checkout has no dist/ anywhere.
   if (!process.argv.includes("--skip-build")) {

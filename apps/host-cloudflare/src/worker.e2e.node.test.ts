@@ -103,6 +103,7 @@ describe("cloudflare host e2e (workerd/miniflare)", () => {
       vars: {
         EXECUTOR_SECRET_KEY: "test-secret-key-0123456789abcdef",
         ENABLE_DEV_AUTH: "true",
+        MIGRATE_D1_ON_STARTUP: "true",
       },
     });
   }, 120_000);

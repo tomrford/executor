@@ -9,6 +9,7 @@
     "dev:web": "vite dev",
     "typecheck": "tsgo --noEmit",
     "cf-typegen": "wrangler types",
+    "db:migrate:remote": "bun scripts/migrate-remote.ts",
     "deploy:setup": "bash scripts/deploy.sh",
     "vendor-wasm": "bun run scripts/vendor-quickjs-wasm.ts",
     "test": "vitest run",

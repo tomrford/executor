@@ -37,8 +37,10 @@ bun run deploy:setup    # apps/host-cloudflare — provisions D1 + secret + depl
 ```
 
 `deploy:setup` (scripts/deploy.sh) is idempotent. It creates or reuses the
-`executor` D1 database, writes its id into `wrangler.jsonc`, generates and
-uploads `EXECUTOR_SECRET_KEY`, then deploys. It then prints the one manual step.
+`executor` D1 database, writes its id into `wrangler.jsonc`, applies schema and
+data migrations through remote D1/R2 bindings, generates and uploads
+`EXECUTOR_SECRET_KEY`, then deploys. Request and MCP-session startup only open
+the already-migrated binding and never run migrations.
 
 ### The one manual step — Cloudflare Access
 
@@ -70,6 +72,7 @@ command above again whenever you need to change them.
 # .dev.vars
 EXECUTOR_SECRET_KEY=dev-secret-key-0123456789abcdef
 ENABLE_DEV_AUTH=true     # bypass Access; every request is a fixed dev admin
+MIGRATE_D1_ON_STARTUP=true # initialize the local Miniflare D1 database
 
 bun run build            # vite build -> dist/ (the SPA)
 bunx wrangler dev --local   # serves the SPA + Worker API together
