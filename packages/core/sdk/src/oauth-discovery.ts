@@ -239,6 +239,10 @@ const buildResourceMetadataUrls = (resourceUrl: string): string[] => {
   const urls: string[] = [];
   if (path && path !== "/") {
     urls.push(`${origin}/.well-known/oauth-protected-resource${path}`);
+    // Some providers advertise a resource-relative metadata URL in their
+    // WWW-Authenticate challenge (for example, IBKR). Accept that same-origin
+    // layout as a compatibility fallback before trying origin-wide metadata.
+    urls.push(`${origin}${path}/.well-known/oauth-protected-resource`);
   }
   urls.push(`${origin}/.well-known/oauth-protected-resource`);
   return urls;
