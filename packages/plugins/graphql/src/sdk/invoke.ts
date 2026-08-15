@@ -113,6 +113,7 @@ export const invoke = Effect.fn("GraphQL.invoke")(function* (
 
   let request = HttpClientRequest.post(requestEndpoint).pipe(
     HttpClientRequest.setHeader("Content-Type", "application/json"),
+    HttpClientRequest.setHeader("User-Agent", "executor-graphql"),
     HttpClientRequest.bodyJsonUnsafe({
       query: operationString,
       variables: Object.keys(variables).length > 0 ? variables : undefined,
